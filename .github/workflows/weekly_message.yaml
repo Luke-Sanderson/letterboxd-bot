@@ -1,0 +1,34 @@
+name: Weekly Letterboxd Bot
+
+on:
+  schedule:
+    - cron: '0 12 * * 0'
+  
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  run_bot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: swatinem/rust-cache@v2
+
+      - name: Build Project
+        run: cargo build --release
+
+      - name: Run Bot
+        run: ./target/release/letterboxd_bot
+        env:
+          SHEET_CSV_URL: ${{ secrets.SHEET_CSV_URL }}
+          WHAPI_TOKEN: ${{ secrets.WHAPI_TOKEN }}
+          GROUP_ID: ${{ secrets.GROUP_ID }}
