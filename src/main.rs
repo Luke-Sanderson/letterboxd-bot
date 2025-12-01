@@ -45,7 +45,6 @@ async fn main() -> Result<()> {
         let friend_name = record.get(0).unwrap_or("Unknown").trim().to_string();
         let username = record.get(1).context("No username")?.trim();
 
-        println!("Fetching RSS for: {}", friend_name);
         let feed_url = format!("https://letterboxd.com/{}/rss/", username);
 
         // We use if let so a single bad feed doesn't crash the whole bot
@@ -127,7 +126,6 @@ async fn main() -> Result<()> {
         weekly_summary.push_str("\n"); 
     }
 
-    println!("Summary:\n{}", weekly_summary);
     send_whatsapp(&client, &weekly_summary, &whapi_token, &group_id).await?;
 
     Ok(())
@@ -170,5 +168,6 @@ async fn send_whatsapp(client: &Client, message: &str, token: &str, group_id: &s
         .header("Content-Type", "application/json")
         .json(&payload)
         .send().await?;
+    println!("Successfully sent the Whatsapp message");
     Ok(())
 }
