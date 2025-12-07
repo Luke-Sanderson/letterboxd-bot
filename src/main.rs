@@ -168,6 +168,13 @@ async fn send_whatsapp(client: &Client, message: &str, token: &str, group_id: &s
         .header("Content-Type", "application/json")
         .json(&payload)
         .send().await?;
+    
+    if !response.status().is_success() {
+        let status = response.status();
+        let error_body = response.text().await.unwrap_or_else(|_| "No error details provided".to_string());
+        anyhow::bail!("Whapi API Failed! Status: {}. Details: {}", status, error_body);
+    }
+
     println!("Successfully sent the Whatsapp message");
     Ok(())
 }
