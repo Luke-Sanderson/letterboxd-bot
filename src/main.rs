@@ -163,7 +163,7 @@ async fn fetch_and_parse_feed(client: &Client, url: &str) -> Result<Channel> {
 
 async fn send_whatsapp(client: &Client, message: &str, token: &str, group_id: &str) -> Result<()> {
     let payload = serde_json::json!({ "to": group_id, "body": message });
-    client.post(WHAPI_URL)
+    let response = client.post(WHAPI_URL)
         .header("Authorization", format!("Bearer {}", token))
         .header("Content-Type", "application/json")
         .json(&payload)
