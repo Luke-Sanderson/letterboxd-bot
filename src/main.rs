@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
 use chrono::{DateTime, Duration, Utc};
+use regex::Regex;
 use reqwest::Client;
 use rss::Channel;
-use regex::Regex;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::env;
@@ -94,15 +94,14 @@ async fn create_message(movie_map: HashMap<String, MovieGroup>) -> String {
                 // Has rating - Calculate score and get emoji
                 let score = calculate_score(&review.rating_raw);
                 let emoji = get_reaction_emoji(score);
-                
-                weekly_summary.push_str(&format!("• *{}* rated ({}) {}\n", 
-                    review.friend_name, 
-                    review.rating_raw, 
-                    emoji
+
+                weekly_summary.push_str(&format!(
+                    "• *{}* rated ({}) {}\n",
+                    review.friend_name, review.rating_raw, emoji
                 ));
             }
         }
-        weekly_summary.push_str("\n"); 
+        weekly_summary.push_str("\n");
     }
 
     weekly_summary
@@ -134,7 +133,6 @@ async fn get_movie_map(client: &Client, sheet_url: &str) -> Result<HashMap<Strin
                 if let Some(pub_date_str) = item.pub_date() {
                     if let Ok(pub_date) = DateTime::parse_from_rfc2822(pub_date_str) {
                         if pub_date.with_timezone(&Utc) >= seven_days_ago {
-                            
                             let raw_title = item.title().unwrap_or("Unknown Movie");
                             let user_link = item.link().unwrap_or("");
 
@@ -144,8 +142,8 @@ async fn get_movie_map(client: &Client, sheet_url: &str) -> Result<HashMap<Strin
                                     let title = caps.get(1).map_or("", |m| m.as_str()).to_string();
                                     let stars = caps.get(3).map_or("", |m| m.as_str()).to_string();
                                     (title, stars)
-                                },
-                                None => (raw_title.to_string(), "".to_string())
+                                }
+                                None => (raw_title.to_string(), "".to_string()),
                             };
 
                             // Generate movie link
@@ -159,8 +157,9 @@ async fn get_movie_map(client: &Client, sheet_url: &str) -> Result<HashMap<Strin
                                 rating_raw,
                             };
 
-                            movie_map.entry(clean_title)
-                                .and_modify(|group| group.reviews.push(entry.clone())) 
+                            movie_map
+                                .entry(clean_title)
+                                .and_modify(|group| group.reviews.push(entry.clone()))
                                 .or_insert(MovieGroup {
                                     general_link,
                                     reviews: vec![entry],
@@ -173,32 +172,45 @@ async fn get_movie_map(client: &Client, sheet_url: &str) -> Result<HashMap<Strin
     }
 
     Ok(movie_map)
-    
-
 }
 
-async fn send_whatsapp(client: &Client, message: &str, token: &str, group_id: &str) -> Result<String> {
+async fn send_whatsapp(
+    client: &Client,
+    message: &str,
+    token: &str,
+    group_id: &str,
+) -> Result<String> {
     let url = "https://gate.whapi.cloud/messages/text";
-    
+
     let payload = serde_json::json!({ "to": group_id, "body": message });
-    let response = client.post(url)
+    let response = client
+        .post(url)
         .header("Authorization", format!("Bearer {}", token))
         .header("Content-Type", "application/json")
         .json(&payload)
-        .send().await?;
-    
+        .send()
+        .await?;
+
     if !response.status().is_success() {
         let status = response.status();
-        let error_body = response.text().await.unwrap_or_else(|_| "No error details provided".to_string());
-        anyhow::bail!("Send message failed! Status: {}. Details: {}", status, error_body);
+        let error_body = response
+            .text()
+            .await
+            .unwrap_or_else(|_| "No error details provided".to_string());
+        anyhow::bail!(
+            "Send message failed! Status: {}. Details: {}",
+            status,
+            error_body
+        );
     }
 
     println!("Sent the Whatsapp message");
 
     let body_text = response.text().await?;
     let json: Value = serde_json::from_str(&body_text)?;
-    
-    let msg_id = json.get("message")
+
+    let msg_id = json
+        .get("message")
         .and_then(|m| m.get("id"))
         .and_then(|id| id.as_str())
         .context("Could not parse Message ID from API response")?
@@ -209,12 +221,11 @@ async fn send_whatsapp(client: &Client, message: &str, token: &str, group_id: &s
 
 async fn pin_message(client: &Client, message_id: &str, token: &str) -> Result<()> {
     let url = format!("https://gate.whapi.cloud/messages/{}/pin", message_id);
-    
-    let payload = serde_json::json!({ 
-        "time": 604800 // 604800 = 7*24*60*60
-    });
 
-    let response = client.post(&url)
+    let payload = serde_json::json!({"time": "week"});
+
+    let response = client
+        .post(&url)
         .header("Authorization", format!("Bearer {}", token))
         .header("Content-Type", "application/json")
         .json(&payload)
@@ -233,11 +244,11 @@ async fn pin_message(client: &Client, message_id: &str, token: &str) -> Result<(
 
 async fn set_presence_offline(client: &Client, token: &str) -> Result<()> {
     let url = "https://gate.whapi.cloud/users/presence";
-    
-    // "unavailable" creates the "offline" state (hides 'Online' status)
-    let payload = serde_json::json!({ "presence": "unavailable" });
 
-    let response = client.post(url)
+    let payload = serde_json::json!({ "presence": "offline" });
+
+    let response = client
+        .post(url)
         .header("Authorization", format!("Bearer {}", token))
         .header("Content-Type", "application/json")
         .json(&payload)
@@ -247,7 +258,11 @@ async fn set_presence_offline(client: &Client, token: &str) -> Result<()> {
     if !response.status().is_success() {
         let status = response.status();
         let error_body = response.text().await.unwrap_or_default();
-        anyhow::bail!("Set to offline failed! Status: {}. Details: {}", status, error_body);
+        anyhow::bail!(
+            "Set to offline failed! Status: {}. Details: {}",
+            status,
+            error_body
+        );
     }
 
     println!("Set the status to offline");
