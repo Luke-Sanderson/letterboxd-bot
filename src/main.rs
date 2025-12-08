@@ -6,7 +6,6 @@ use rss::Channel;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::env;
-use std::result::Result::Ok;
 
 #[derive(Clone)]
 struct ReviewEntry {
