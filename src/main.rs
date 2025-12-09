@@ -242,12 +242,12 @@ async fn pin_message(client: &Client, message_id: &str, token: &str) -> Result<(
 }
 
 async fn set_presence_offline(client: &Client, token: &str) -> Result<()> {
-    let url = "https://gate.whapi.cloud/users/presence";
+    let url = "https://gate.whapi.cloud/presences/me";
 
     let payload = serde_json::json!({ "presence": "offline" });
 
     let response = client
-        .post(url)
+        .put(url)
         .header("Authorization", format!("Bearer {}", token))
         .header("Content-Type", "application/json")
         .json(&payload)
